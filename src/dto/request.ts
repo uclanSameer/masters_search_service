@@ -1,4 +1,8 @@
 export default interface SearchRequest {
-  search: string;
+  search?: string;
   isFeatured?: boolean;
+
+  page?: number;
+
+  size?: number;
 }
