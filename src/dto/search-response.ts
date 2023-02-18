@@ -7,4 +7,8 @@ export interface MenuResponse {
   image: string;
   isFeatured: boolean;
   sellerId: number;
+  isAvailable?: boolean;
+  isVeg?: boolean;
+  instantDelivery?: boolean;
+  bookingRequired?: boolean;
 }

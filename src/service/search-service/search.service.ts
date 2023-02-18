@@ -6,10 +6,12 @@ import {
   SearchHit,
   SearchResponse,
 } from '@elastic/elasticsearch/lib/api/typesWithBodyKey';
-import MenuSearchRequest from '../../dto/request';
-import ApiResponse from '../../dto/response';
+import MenuSearchRequest, { Location, SellerSearchRequest } from '../../dto/request';
+import ApiResponse, { SellerResponse } from '../../dto/response';
 import { S3Service } from '../s3-service/s3.service';
 import { MenuResponse } from '../../dto/search-response';
+import { PostCodeService } from '../post-code/post-code.service';
+import { SearchUtils } from 'src/utils/SearchUtils';
 
 @Injectable()
 export class SearchService {
@@ -17,6 +19,7 @@ export class SearchService {
 
   constructor(
     private s3Service: S3Service,
+    private postCodeService: PostCodeService,
     elasticClientConfig: ElasticClientConfig,
   ) {
     this.client = elasticClientConfig.createClient();
@@ -40,7 +43,7 @@ export class SearchService {
   }
 
   async searchMenu(request: MenuSearchRequest): Promise<ApiResponse<unknown>> {
-    const query = this.createQuery(request);
+    const query = SearchUtils.createQueryFroMenu(request);
 
     if (request.isFeatured !== undefined) {
       query.bool.must = [
@@ -66,6 +69,28 @@ export class SearchService {
     };
   }
 
+  async searchCheif(sellerSearch: SellerSearchRequest): Promise<ApiResponse<unknown>> {
+    if(!sellerSearch.location && sellerSearch.postalCode) {
+      const location: Location = await this.postCodeService.getLocationFromPostCode(sellerSearch.postalCode);
+      sellerSearch.location = location;
+    }
+    const query = SearchUtils.createQueryForSeller(sellerSearch);
+    console.log(JSON.stringify(query));
+    const search: SearchResponse = await this.client.search<SellerResponse>({
+      index: 'seller_temp',
+      query: query,
+      size: sellerSearch.size != null ? sellerSearch.size : 10,
+      from: ((sellerSearch.page != null ? sellerSearch.page : 1) - 1) * sellerSearch.size,
+    })
+    const hits: Array<unknown> = await this.mapSearchResponseForSeller(search);
+    return {
+      data: hits,
+      message: 'success',
+      status: 200,
+      size: hits.length,
+    };
+  }
+
   private async mapSearchResponse(search: SearchResponse) {
     return await Promise.all(
       search.hits.hits
@@ -74,6 +99,13 @@ export class SearchService {
           menu.image = await this.s3Service.getPresignedUrl(menu.image);
           return menu;
         }),
+    );
+  }
+
+  private async mapSearchResponseForSeller(search: SearchResponse) {
+    return await Promise.all(
+      search.hits.hits
+        .map((hit: SearchHit<SellerResponse>) => hit._source),
     );
   }
 
@@ -107,4 +139,49 @@ export class SearchService {
     };
     return query;
   }
+
+  private createQueryForSeller(request: SellerSearchRequest) {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        should: [
+          {
+            match: {
+              'userDetail.name': {
+                query: request.search,
+              },
+            },
+          }
+        ],
+      },
+    };
+
+    if (request.location) {
+      query.bool.filter = [
+        {
+          geo_distance: {
+            distance: request.radius + 'km',
+            location: {
+              lat: request.location.lat,
+              lon: request.location.lon,
+            },
+          },
+        },
+      ];
+    }
+
+    if (request.isFeatured !== undefined) {
+      query.bool.must = [
+        {
+          match: {
+            isFeatured: {
+              query: request.isFeatured,
+            },
+          },
+        },
+      ];
+    }
+    return query;
+  }
+
+  
 }

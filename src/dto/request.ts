@@ -5,4 +5,17 @@ export default interface SearchRequest {
   page?: number;
 
   size?: number;
+  
 }
+
+export interface SellerSearchRequest extends SearchRequest {
+  location?: Location;
+  postalCode?: string;
+  radius?: number;
+}
+
+export interface Location{
+  lat: number;
+  lon: number;
+}
+
