@@ -24,7 +24,7 @@ import { HttpModule } from '@nestjs/axios';
     PostCodeService,
     S3Config,
     S3Service,
-    ThumbnailServiceService,
+    ThumbnailServiceService
   ],
 })
 export class AppModule {}

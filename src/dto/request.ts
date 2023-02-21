@@ -1,11 +1,14 @@
-export default interface SearchRequest {
+export default interface SearchRequest extends AllSearchRequest {
   search?: string;
+}
+
+export interface AllSearchRequest extends Pagination {
   isFeatured?: boolean;
+}
 
+export interface Pagination {
   page?: number;
-
   size?: number;
-  
 }
 
 export interface SellerSearchRequest extends SearchRequest {

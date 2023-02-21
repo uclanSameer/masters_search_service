@@ -39,19 +39,22 @@ export class SearchUtils {
       }
 
       public static createQueryForSeller(request: SellerSearchRequest) {
-        const query: QueryDslQueryContainer = {
+        let query: QueryDslQueryContainer = {
           bool: {
-            should: [
-              {
-                match: {
-                  'userDetail.name': {
-                    query: request.search,
-                  },
-                },
-              }
-            ],
-          },
+
+          }
         };
+        if(request.search){
+          query.bool.should = [
+            {
+              match: {
+                'userDetail.name': {
+                  query: request.search,
+                },
+              },
+            }
+          ];
+        }
     
         if (request.location) {
           query.bool.filter = [

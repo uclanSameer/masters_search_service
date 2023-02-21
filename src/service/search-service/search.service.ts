@@ -6,7 +6,7 @@ import {
   SearchHit,
   SearchResponse,
 } from '@elastic/elasticsearch/lib/api/typesWithBodyKey';
-import MenuSearchRequest, { Location, SellerSearchRequest } from '../../dto/request';
+import MenuSearchRequest, { AllSearchRequest, Location, Pagination, SellerSearchRequest } from '../../dto/request';
 import ApiResponse, { SellerResponse } from '../../dto/response';
 import { S3Service } from '../s3-service/s3.service';
 import { MenuResponse } from '../../dto/search-response';
@@ -75,7 +75,6 @@ export class SearchService {
       sellerSearch.location = location;
     }
     const query = SearchUtils.createQueryForSeller(sellerSearch);
-    console.log(JSON.stringify(query));
     const search: SearchResponse = await this.client.search<SellerResponse>({
       index: 'seller_temp',
       query: query,
@@ -105,83 +104,16 @@ export class SearchService {
   private async mapSearchResponseForSeller(search: SearchResponse) {
     return await Promise.all(
       search.hits.hits
-        .map((hit: SearchHit<SellerResponse>) => hit._source),
+        .map((hit: SearchHit<SellerResponse>) => hit._source)
+        .map(async (seller: SellerResponse) => {
+          const imageUrl = `image/${seller.userDetail.userId}/profile/${seller.userDetail.name}`;
+          if(this.s3Service.checkIfFileExists(imageUrl)){
+            seller.image = await this.s3Service.getPresignedUrl(imageUrl);
+          }else{
+            seller.image = '';
+          }
+          return seller;
+        })
     );
   }
-
-  private createQuery(request: MenuSearchRequest) {
-    const query: QueryDslQueryContainer = {
-      bool: {
-        should: [
-          {
-            match: {
-              name: {
-                query: request.search,
-              },
-            },
-          },
-          {
-            match: {
-              cuisine: {
-                query: request.search,
-              },
-            },
-          },
-          {
-            match: {
-              description: {
-                query: request.search,
-              },
-            },
-          },
-        ],
-      },
-    };
-    return query;
-  }
-
-  private createQueryForSeller(request: SellerSearchRequest) {
-    const query: QueryDslQueryContainer = {
-      bool: {
-        should: [
-          {
-            match: {
-              'userDetail.name': {
-                query: request.search,
-              },
-            },
-          }
-        ],
-      },
-    };
-
-    if (request.location) {
-      query.bool.filter = [
-        {
-          geo_distance: {
-            distance: request.radius + 'km',
-            location: {
-              lat: request.location.lat,
-              lon: request.location.lon,
-            },
-          },
-        },
-      ];
-    }
-
-    if (request.isFeatured !== undefined) {
-      query.bool.must = [
-        {
-          match: {
-            isFeatured: {
-              query: request.isFeatured,
-            },
-          },
-        },
-      ];
-    }
-    return query;
-  }
-
-  
 }

@@ -10,9 +10,13 @@ export interface SellerResponse {
   email:      string;
   isFeatured: boolean;
   userDetail: UserDetail;
+  image?:      string;
 }
 
+
+
 export interface UserDetail {
+  userId:      string;
   name:        string;
   phoneNumber: string;
   address:     string;

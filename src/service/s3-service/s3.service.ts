@@ -24,4 +24,24 @@ export class S3Service {
         return value;
       });
   }
+
+  public checkIfFileExists(key: string): Promise<boolean> {
+    const bucket = this.config.get<string>('AWS_S3_BUCKET');
+    const region = this.config.get<string>('AWS_REGION');
+    const s3ObjectUrl = parseUrl(
+      `https://${bucket}.s3.${region}.amazonaws.com/${key}`,
+    );
+
+    return this.s3Config.s3().headObject({
+      Bucket: bucket,
+      Key: key,
+    })
+    .then((value) => {
+      return true;
+    })
+    .catch((error) => {
+      console.error(error);
+      return false;
+    });
+  }
 }
