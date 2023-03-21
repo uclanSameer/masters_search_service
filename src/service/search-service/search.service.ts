@@ -6,12 +6,12 @@ import {
   SearchHit,
   SearchResponse,
 } from '@elastic/elasticsearch/lib/api/typesWithBodyKey';
-import MenuSearchRequest, { AllSearchRequest, Location, Pagination, SellerSearchRequest } from '../../dto/request';
 import ApiResponse, { SellerResponse } from '../../dto/response';
 import { S3Service } from '../s3-service/s3.service';
 import { MenuResponse } from '../../dto/search-response';
 import { PostCodeService } from '../post-code/post-code.service';
 import { SearchUtils } from 'src/utils/SearchUtils';
+import { MenuSearchRequest, SellerSearchRequest, Location } from 'src/dto/request';
 
 @Injectable()
 export class SearchService {
@@ -44,18 +44,6 @@ export class SearchService {
 
   async searchMenu(request: MenuSearchRequest): Promise<ApiResponse<unknown>> {
     const query = SearchUtils.createQueryFroMenu(request);
-
-    if (request.isFeatured !== undefined) {
-      query.bool.must = [
-        {
-          match: {
-            isFeatured: {
-              query: request.isFeatured,
-            },
-          },
-        },
-      ];
-    }
     const search: SearchResponse = await this.client.search<MenuResponse>({
       index: 'menu',
       query: query,
@@ -70,13 +58,13 @@ export class SearchService {
   }
 
   async searchCheif(sellerSearch: SellerSearchRequest): Promise<ApiResponse<unknown>> {
-    if(!sellerSearch.location && sellerSearch.postalCode) {
+    if (!sellerSearch.location && sellerSearch.postalCode) {
       const location: Location = await this.postCodeService.getLocationFromPostCode(sellerSearch.postalCode);
       sellerSearch.location = location;
     }
-    const query = SearchUtils.createQueryForSeller(sellerSearch);
+    const query: QueryDslQueryContainer = SearchUtils.createQueryForSeller(sellerSearch);
     const search: SearchResponse = await this.client.search<SellerResponse>({
-      index: 'seller_temp',
+      index: 'seller',
       query: query,
       size: sellerSearch.size != null ? sellerSearch.size : 10,
       from: ((sellerSearch.page != null ? sellerSearch.page : 1) - 1) * sellerSearch.size,
@@ -107,9 +95,9 @@ export class SearchService {
         .map((hit: SearchHit<SellerResponse>) => hit._source)
         .map(async (seller: SellerResponse) => {
           const imageUrl = `image/${seller.userDetail.userId}/profile/${seller.userDetail.name}`;
-          if(this.s3Service.checkIfFileExists(imageUrl)){
+          if (this.s3Service.checkIfFileExists(imageUrl)) {
             seller.image = await this.s3Service.getPresignedUrl(imageUrl);
-          }else{
+          } else {
             seller.image = '';
           }
           return seller;

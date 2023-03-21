@@ -2,6 +2,10 @@ export default interface SearchRequest extends AllSearchRequest {
   search?: string;
 }
 
+export interface MenuSearchRequest extends SearchRequest {
+  email?: string;
+}
+
 export interface AllSearchRequest extends Pagination {
   isFeatured?: boolean;
 }
