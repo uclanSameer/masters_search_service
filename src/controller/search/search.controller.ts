@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { SearchService } from '../../service/search-service/search.service';
 import SearchRequest, { SellerSearchRequest } from '../../dto/request';
 
@@ -19,5 +19,15 @@ export class SearchController {
   @Post('cheif')
   public cheifSearch(@Body() search: SellerSearchRequest) {
     return this.searchService.searchCheif(search);
+  }
+
+  @Get('cheif/:id')
+  public findbyId(@Param('id') id: string) {
+    return this.searchService.findCheifById(id);
+  }
+
+  @Get('cuisines')
+  public cuisines() {
+    return this.searchService.distinctCuisines();
   }
 }

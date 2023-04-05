@@ -11,4 +11,7 @@ export interface MenuResponse {
   isVeg?: boolean;
   instantDelivery?: boolean;
   bookingRequired?: boolean;
+  businessEmail?: string;
+  businessName?: string;
+  businessLocation?: string;
 }

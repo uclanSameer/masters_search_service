@@ -111,6 +111,17 @@ export class SearchUtils {
         }
       ]
     }
+
+    if (request.cusines && request.cusines.length > 0) {
+      query.bool.must = [
+        {
+          terms: {
+            'cuisines.keyword': request.cusines,
+          }
+        },
+      ];
+    }
+
     return query;
   }
 }

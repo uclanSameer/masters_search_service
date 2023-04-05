@@ -19,6 +19,7 @@ export interface SellerSearchRequest extends SearchRequest {
   location?: Location;
   postalCode?: string;
   radius?: number;
+  cusines?: Array<string>;
 }
 
 export interface Location{
