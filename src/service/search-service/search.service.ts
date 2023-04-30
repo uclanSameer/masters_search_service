@@ -6,7 +6,7 @@ import {
   SearchHit,
   SearchResponse,
 } from '@elastic/elasticsearch/lib/api/typesWithBodyKey';
-import ApiResponse, { SellerResponse } from '../../dto/response';
+import ApiResponse, { ChefFullResponse, SellerResponse } from '../../dto/response';
 import { S3Service } from '../s3-service/s3.service';
 import { MenuResponse } from '../../dto/search-response';
 import { PostCodeService } from '../post-code/post-code.service';
@@ -43,18 +43,22 @@ export class SearchService {
     };
   }
 
-  async searchMenu(request: MenuSearchRequest): Promise<ApiResponse<unknown>> {
-    const query = SearchUtils.createQueryFroMenu(request);
+  async searchMenu(request: MenuSearchRequest): Promise<ApiResponse<Array<MenuResponse>>> {
+    const query = SearchUtils.createQueryForMenu(request);
+    const size = request.size != null ? request.size : 10;
     const search: SearchResponse = await this.client.search<MenuResponse>({
       index: 'menu',
       query: query,
+      size,
+      from: ((request.page && request.page != null ? request.page : 1) - 1) * size,
     });
-    const hits: Array<unknown> = await this.mapMenuResponse(search);
+    const hits: Array<MenuResponse> = await this.mapMenuResponse(search);
+    const total = typeof search.hits.total === 'number' ? search.hits.total : search.hits.total.value;
     return {
       data: hits,
       message: 'success',
       status: 200,
-      size: hits.length,
+      size: total
     };
   }
 
@@ -79,7 +83,7 @@ export class SearchService {
     };
   }
 
-  async findCheifById(id: string): Promise<ApiResponse<unknown>> {
+  async findCheifById(id: string): Promise<ApiResponse<Array<SellerResponse>>> {
     const search: SearchResponse = await this.client.search<SellerResponse>({
       index: 'seller',
       query: {
@@ -98,7 +102,7 @@ export class SearchService {
   }
 
 
-    async findCheifByEmail(email: string): Promise<ApiResponse<Array<SellerResponse>>> {
+  async findCheifByEmail(email: string): Promise<ApiResponse<Array<SellerResponse>>> {
     const search: SearchResponse = await this.client.search<SellerResponse>({
       index: 'seller',
       query: {
@@ -116,7 +120,44 @@ export class SearchService {
     };
   }
 
-  async distinctCuisines(): Promise<ApiResponse<Array<string>>>{
+  public async cheifFullDetails(
+    id: string,
+  ): Promise<ApiResponse<ChefFullResponse>> {
+    const cheifDetails = (await this.findCheifById(id)).data[0];
+    return await this.getChefFullDetails(cheifDetails);
+  }
+
+  public async cheifFullDetailsByEmail(email: string): Promise<ApiResponse<ChefFullResponse>> {
+    const cheifDetails = (await this.findCheifByEmail(email)).data[0];
+    return await this.getChefFullDetails(cheifDetails);
+  }
+
+
+  private async getChefFullDetails(cheifDetails: SellerResponse) {
+    const menuResponse = await this.searchMenu({
+      email: cheifDetails.email,
+    });
+
+    const featuredItems = await this.searchMenu({
+      email: cheifDetails.email,
+      isFeatured: true,
+      size: 0
+    });
+    const menuItems = menuResponse.data;
+    return {
+      data: {
+        cheifDetails,
+        menuItems,
+        menuItemsCount: menuResponse.size,
+        featuredItemsCount: featuredItems.size,
+      },
+      message: 'success',
+      status: 200,
+      size: 1
+    };
+  }
+
+  async distinctCuisines(): Promise<ApiResponse<Array<string>>> {
     const search: SearchResponse = await this.client.search<SellerResponse>({
       index: 'seller',
       size: 0,
@@ -166,7 +207,7 @@ export class SearchService {
       search.hits.hits
         .map((hit: SearchHit<SellerResponse>) => hit._source)
         .map(async (seller: SellerResponse) => {
-          const imageUrl = `image/${seller.userDetail.userId}/profile/${seller.userDetail.name}`;
+          const imageUrl = seller.userDetail.imageUrl;
           if (this.s3Service.checkIfFileExists(imageUrl)) {
             seller.image = await this.s3Service.getPresignedUrl(imageUrl);
           } else {

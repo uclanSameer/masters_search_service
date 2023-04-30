@@ -7,7 +7,7 @@ export class SearchUtils {
     throw new Error('This is a static class');
   }
 
-  public static createQueryFroMenu(request: MenuSearchRequest) {
+  public static createQueryForMenu(request: MenuSearchRequest) {
     let query: QueryDslQueryContainer = {
       bool: {}
     }
@@ -45,13 +45,24 @@ export class SearchUtils {
       query.bool.must = [
         {
           match: {
-            businessEmail: {
-              query: request.email,
-            },
+            'businessEmail.keyword': request.email
           },
         },
       ];
     }
+
+    if (request.isFeatured !== undefined) {
+      const fearuredQuery: QueryDslQueryContainer = {
+        match: {
+          isFeatured: request.isFeatured
+        },
+      };
+      if (query.bool.must) {
+        ((query.bool.must) as QueryDslQueryContainer[])
+          .push(fearuredQuery);
+      }
+    }
+
     return query;
   }
 
@@ -112,16 +123,17 @@ export class SearchUtils {
       ]
     }
 
-    if (request.cusines && request.cusines.length > 0) {
+    if (request.cuisines && request.cuisines.length > 0) {
       query.bool.must = [
         {
           terms: {
-            'cuisines.keyword': request.cusines,
+            'cuisines.keyword': request.cuisines,
           }
         },
       ];
     }
 
+    console.log('query', JSON.stringify(query));
     return query;
   }
 }

@@ -1,3 +1,5 @@
+import { MenuResponse } from "./search-response";
+
 export default interface ApiResponse<T> {
   status: number;
   message: string;
@@ -24,4 +26,12 @@ export interface UserDetail {
   state:       string;
   country:     string;
   postalCode:  string;
+  imageUrl:      string;
+}
+
+export interface ChefFullResponse {
+  cheifDetails: SellerResponse;
+  menuItems: Array<MenuResponse>;
+  menuItemsCount: number;
+  featuredItemsCount: number;
 }
